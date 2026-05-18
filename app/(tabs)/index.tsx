@@ -1,95 +1,126 @@
+import { auth, db } from '@/constants/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { arrayRemove, arrayUnion, collection, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const FAKE_ARTWORKS = [
-  {
-    id: '1',
-    author: 'MuralHunter',
-    likes: 142,
-    location: 'Paris, 11e',
-    image: 'https://picsum.photos/seed/art1/400/300',
-    liked: false,
-  },
-  {
-    id: '2',
-    author: 'StreetEyes_FR',
-    likes: 87,
-    location: 'Belleville',
-    image: 'https://picsum.photos/seed/art2/400/300',
-    liked: true,
-  },
-  {
-    id: '3',
-    author: 'GraffitiLover',
-    likes: 213,
-    location: 'Oberkampf',
-    image: 'https://picsum.photos/seed/art3/400/300',
-    liked: false,
-  },
-];
+type Artwork = {
+  id: string;
+  imageUrl: string;
+  author: string;
+  authorId: string;
+  likes: number;
+  likedBy: string[];
+  location: { lat: number; lng: number };
+};
 
 export default function HomeScreen() {
-  const [artworks, setArtworks] = useState(FAKE_ARTWORKS);
+  const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'liked'>('all');
+  const [loading, setLoading] = useState(true);
 
-  const handleLike = (id: string) => {
-    setArtworks(prev =>
-      prev.map(art =>
-        art.id === id
-          ? { ...art, liked: !art.liked, likes: art.liked ? art.likes - 1 : art.likes + 1 }
-          : art
-      )
-    );
+  const currentUserId = auth.currentUser?.uid || '';
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'artworks'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        likedBy: doc.data().likedBy || [],
+      })) as Artwork[];
+
+      data.sort((a: any, b: any) => b.createdAt?.seconds - a.createdAt?.seconds);
+      setArtworks(data);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const handleLike = async (artwork: Artwork) => {
+    const artworkRef = doc(db, 'artworks', artwork.id);
+    const isLiked = artwork.likedBy.includes(currentUserId);
+
+    try {
+      if (isLiked) {
+        await updateDoc(artworkRef, {
+          likes: increment(-1),
+          likedBy: arrayRemove(currentUserId),
+        });
+      } else {
+        await updateDoc(artworkRef, {
+          likes: increment(1),
+          likedBy: arrayUnion(currentUserId),
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenMap = (location: { lat: number; lng: number }) => {
+    const url = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
+    Linking.openURL(url);
   };
 
   const displayedArtworks = activeTab === 'liked'
-    ? artworks.filter(art => art.liked)
+    ? artworks.filter(art => art.likedBy.includes(currentUserId))
     : artworks;
 
-  const ArtworkCard = ({ item }: { item: typeof FAKE_ARTWORKS[0] }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => alert(`Ouvrir Google Maps pour : ${item.location}`)}
-      activeOpacity={0.9}
-    >
-      <Image source={{ uri: item.image }} style={styles.cardImage} />
-      <View style={styles.cardMeta}>
-        <View style={styles.cardInfo}>
-          <View style={styles.authorRow}>
-            <Ionicons name="person-circle" size={16} color="#7209B7" />
-            <Text style={styles.authorText}>@{item.author}</Text>
+  const ArtworkCard = ({ item }: { item: Artwork }) => {
+    const isLiked = item.likedBy.includes(currentUserId);
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleOpenMap(item.location)}
+        activeOpacity={0.9}
+      >
+        <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+        <View style={styles.cardMeta}>
+          <View style={styles.cardInfo}>
+            <View style={styles.authorRow}>
+              <Ionicons name="person-circle" size={16} color="#7209B7" />
+              <Text style={styles.authorText}>@{item.author}</Text>
+            </View>
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.4)" />
+              <Text style={styles.locationText}>Tap to view on map</Text>
+            </View>
           </View>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.4)" />
-            <Text style={styles.locationText}>Tap to view on map</Text>
-          </View>
+          <TouchableOpacity
+            style={[styles.likeBtn, isLiked && styles.likeBtnActive]}
+            onPress={() => handleLike(item)}
+          >
+            <Ionicons
+              name={isLiked ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isLiked ? '#F72585' : 'rgba(255,255,255,0.5)'}
+            />
+            <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>
+              {item.likes}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.likeBtn, item.liked && styles.likeBtnActive]}
-          onPress={() => handleLike(item.id)}
-        >
-          <Ionicons
-            name={item.liked ? 'heart' : 'heart-outline'}
-            size={18}
-            color={item.liked ? '#F72585' : 'rgba(255,255,255,0.5)'}
-          />
-          <Text style={[styles.likeCount, item.liked && styles.likeCountActive]}>
-            {item.likes}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
+
+      {/* Header */}
       <LinearGradient colors={['#0d0d1a', '#0d0d1a']} style={styles.header}>
-        <Text style={styles.logo}>
-          Local<Text style={styles.logoPink}>Street</Text>Art
-        </Text>
+        <View>
+          <Text style={styles.welcome}>
+            Welcome, <Text style={styles.welcomePseudo}>@{auth.currentUser?.displayName || 'Artist'}</Text> 👋
+          </Text>
+          <Text style={styles.logo}>
+            Local<Text style={styles.logoPink}>Street</Text>Art
+          </Text>
+        </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/photo')}>
           <LinearGradient
             colors={['#7209B7', '#F72585']}
@@ -103,6 +134,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </LinearGradient>
 
+      {/* Onglets */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'all' && styles.tabActive]}
@@ -141,19 +173,29 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={displayedArtworks}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => <ArtworkCard item={item} />}
-        contentContainerStyle={styles.feed}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="heart-dislike-outline" size={48} color="rgba(255,255,255,0.2)" />
-            <Text style={styles.emptyText}>No artworks yet</Text>
-          </View>
-        }
-      />
+      {/* Loading */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#F72585" />
+          <Text style={styles.loadingText}>Loading artworks...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={displayedArtworks}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => <ArtworkCard item={item} />}
+          contentContainerStyle={styles.feed}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.2)" />
+              <Text style={styles.emptyText}>
+                {activeTab === 'liked' ? 'No liked artworks yet' : 'No artworks yet'}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -167,6 +209,15 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  welcome: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: 2,
+  },
+  welcomePseudo: {
+    color: '#F72585',
+    fontWeight: '700',
   },
   logo: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
   logoPink: { color: '#F72585' },
@@ -192,6 +243,8 @@ const styles = StyleSheet.create({
   tabGradient: { width: '100%', alignItems: 'center', paddingVertical: 9 },
   tabText: { color: 'rgba(255,255,255,0.35)', fontWeight: '600', fontSize: 12, paddingVertical: 9 },
   tabTextActive: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
   feed: { paddingHorizontal: 16, paddingBottom: 100 },
   card: {
     backgroundColor: '#1a1030',
@@ -202,7 +255,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.07)',
   },
   cardImage: { width: '100%', height: 200 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
   cardInfo: { gap: 4 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   authorText: { color: '#fff', fontWeight: '700', fontSize: 13 },
