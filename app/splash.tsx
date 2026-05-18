@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -5,15 +6,23 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function SplashScreen() {
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    // Après 2.5 secondes, on redirige vers Login
+    if (loading) return;
+
     const timer = setTimeout(() => {
-      router.replace('/login');
+      if (user) {
+        // Utilisateur connecté → Home
+        router.replace('/(tabs)');
+      } else {
+        // Pas connecté → Login
+        router.replace('/login');
+      }
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [user, loading]);
 
   return (
     <LinearGradient
@@ -22,28 +31,20 @@ export default function SplashScreen() {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      {/* Icône caméra dans un carré arrondi */}
       <View style={styles.iconBox}>
         <Ionicons name="camera" size={48} color="#fff" />
       </View>
-
-      {/* Nom de l'app */}
       <Text style={styles.title}>
         Local<Text style={styles.titlePink}>Street</Text>{'\n'}Art
       </Text>
-
-      {/* Tagline */}
       <Text style={styles.tagline}>
         Document ephemeral street art
       </Text>
-
-      {/* Petit point de chargement */}
       <View style={styles.dotsRow}>
         <View style={[styles.dot, styles.dotActive]} />
         <View style={styles.dot} />
         <View style={styles.dot} />
       </View>
-
     </LinearGradient>
   );
 }
@@ -67,15 +68,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontFamily: 'SpaceMono', // on changera par Permanent Marker avec Firebase
     fontSize: 36,
     color: '#fff',
     textAlign: 'center',
     lineHeight: 42,
+    fontWeight: 'bold',
   },
-  titlePink: {
-    color: '#F72585',
-  },
+  titlePink: { color: '#F72585' },
   tagline: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
@@ -96,4 +95,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     width: 24,
   },
-}); 
+});

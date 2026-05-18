@@ -1,7 +1,19 @@
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function TabLayout() {
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    
+    if (!user) {
+      router.replace('/splash');
+    }
+  }, [user, loading]);
+
   return (
     <Tabs
       screenOptions={{
