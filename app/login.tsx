@@ -1,8 +1,11 @@
+import { auth } from '@/constants/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform, ScrollView,
   StyleSheet,
@@ -13,26 +16,49 @@ import {
 } from 'react-native';
 
 export default function LoginScreen() {
-  // Les valeurs des champs du formulaire
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Fonction de connexion — on branchera Firebase après
-  const handleLogin = () => {
-    // Vérification basique
+  const handleLogin = async () => {
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
-    // Pour l'instant on va direct sur Home
-    // Plus tard : Firebase Auth ici
-    router.replace('/(tabs)');
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Firebase Auth — connexion avec email/password
+      await signInWithEmailAndPassword(auth, email, password);
+      // Si ça marche → on va sur Home
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      // Gestion des erreurs Firebase
+      switch (e.code) {
+        case 'auth/invalid-email':
+          setError('Invalid email address');
+          break;
+        case 'auth/user-not-found':
+          setError('No account found with this email');
+          break;
+        case 'auth/wrong-password':
+          setError('Wrong password');
+          break;
+        case 'auth/invalid-credential':
+          setError('Invalid email or password');
+          break;
+        default:
+          setError('An error occurred. Please try again');
+      }
+    }
+    setLoading(false);
   };
 
   return (
-    // KeyboardAvoidingView = remonte le contenu quand le clavier s'ouvre
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -42,7 +68,7 @@ export default function LoginScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo en haut */}
+        {/* Logo */}
         <View style={styles.logoSection}>
           <LinearGradient
             colors={['#3A0CA3', '#7209B7', '#F72585']}
@@ -57,11 +83,10 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Titre */}
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>Sign in to continue</Text>
 
-        {/* Message d'erreur */}
+        {/* Erreur */}
         {error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={16} color="#F72585" />
@@ -69,7 +94,7 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
-        {/* Champ Email */}
+        {/* Email */}
         <Text style={styles.label}>Email</Text>
         <View style={styles.inputBox}>
           <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.3)" />
@@ -84,7 +109,7 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Champ Password */}
+        {/* Password */}
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputBox}>
           <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.3)" />
@@ -96,7 +121,6 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
           />
-          {/* Bouton afficher/cacher le mot de passe */}
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -111,6 +135,7 @@ export default function LoginScreen() {
           style={styles.btnWrapper}
           onPress={handleLogin}
           activeOpacity={0.85}
+          disabled={loading}
         >
           <LinearGradient
             colors={['#3A0CA3', '#7209B7', '#F72585']}
@@ -118,18 +143,20 @@ export default function LoginScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.btn}
           >
-            <Text style={styles.btnText}>Sign In</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>Sign In</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Séparateur */}
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
         </View>
 
-        {/* Bouton S'inscrire */}
         <TouchableOpacity
           style={styles.registerBtn}
           onPress={() => router.push('/register')}
@@ -224,7 +251,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#fff',
     fontSize: 14,
-    fontFamily: 'System',
   },
   btnWrapper: {
     borderRadius: 13,
