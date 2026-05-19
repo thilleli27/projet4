@@ -2,10 +2,11 @@ import { auth, db } from '@/constants/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { signOut } from 'firebase/auth';
 import { arrayRemove, arrayUnion, collection, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
+  
 type Artwork = {
   id: string;
   imageUrl: string;
@@ -64,6 +65,14 @@ export default function HomeScreen() {
     const url = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
     Linking.openURL(url);
   };
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/splash');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const displayedArtworks = activeTab === 'liked'
     ? artworks.filter(art => art.likedBy.includes(currentUserId))
@@ -121,17 +130,22 @@ export default function HomeScreen() {
             Local<Text style={styles.logoPink}>Street</Text>Art
           </Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/photo')}>
-          <LinearGradient
-            colors={['#7209B7', '#F72585']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.addBtnGradient}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+  <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+    <Ionicons name="log-out-outline" size={22} color="rgba(255,255,255,0.5)" />
+  </TouchableOpacity>
+  <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/photo')}>
+    <LinearGradient
+      colors={['#7209B7', '#F72585']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={styles.addBtnGradient}
+    >
+      <Ionicons name="add" size={18} color="#fff" />
+      <Text style={styles.addBtnText}>Add</Text>
+    </LinearGradient>
+  </TouchableOpacity>
+</View>
       </LinearGradient>
 
       {/* Onglets */}
@@ -253,6 +267,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoutBtn: {
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardImage: { width: '100%', height: 200 },
   cardMeta: {
