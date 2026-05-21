@@ -24,22 +24,47 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
+    // Vérification que les champs ne sont pas vides
     if (!pseudo || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+  
+    // Vérification longueur du pseudo
+    if (pseudo.length < 3) {
+      setError('Pseudonym must be at least 3 characters');
       return;
     }
+  
+    // Vérification que le pseudo ne contient pas de caractères spéciaux
+    const pseudoRegex = /^[a-zA-Z0-9_]+$/;
+    if (!pseudoRegex.test(pseudo)) {
+      setError('Pseudonym can only contain letters, numbers and _');
+      return;
+    }
+  
+    // Vérification du format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Invalid email format');
+      return;
+    }
+  
+    // Vérification longueur mot de passe
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-
+  
+    // Vérification que les mots de passe correspondent
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+  
     setLoading(true);
     setError('');
-
+  
     try {
       // Crée le compte Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -48,7 +73,7 @@ export default function RegisterScreen() {
       await updateProfile(userCredential.user, {
         displayName: pseudo,
       });
-
+  
       // Compte créé → on va sur Home
       router.replace('/(tabs)');
     } catch (e: any) {

@@ -22,23 +22,33 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false); // spinner pendant la requête
 
-// Vérifie que les champs ne sont pas vides
   const handleLogin = async () => {
+    // Vérification que les champs ne sont pas vides
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
-
+  
+    // Vérification du format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Invalid email format');
+      return;
+    }
+  
+    // Vérification longueur mot de passe
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+  
     setLoading(true);
     setError('');
-
+  
     try {
-      // Firebase Auth — connexion avec email/password
       await signInWithEmailAndPassword(auth, email, password);
-      // Si ça marche → on va sur Home
       router.replace('/(tabs)');
     } catch (e: any) {
-      // Gestion des erreurs Firebase
       switch (e.code) {
         case 'auth/invalid-email':
           setError('Invalid email address');
