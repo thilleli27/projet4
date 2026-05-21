@@ -65,7 +65,7 @@ export default function LoginScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      // permet de scroller si l'écran est trop petit 
+     {/* permet de scroller si l'écran est trop petit */}
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
