@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-
+// forcer l'app pour démarrer sur l’écran splash
 export const unstable_settings = {
   initialRouteName: 'splash',
 };

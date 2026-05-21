@@ -18,10 +18,11 @@ import {
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);// afficher/masquer le mot de passe
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // spinner pendant la requête
 
+// Vérifie que les champs ne sont pas vides
   const handleLogin = async () => {
     if (!email || !password) {
       setError('Please fill in all fields');
@@ -59,10 +60,12 @@ export default function LoginScreen() {
   };
 
   return (
+    //  remonte le contenu quand le clavier s'ouvre
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      // permet de scroller si l'écran est trop petit 
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
